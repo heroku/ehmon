@@ -1,0 +1,13 @@
+{application, ehmon,
+ [{description, ""}
+  ,{vsn, "1"}
+  ,{registered, []}
+  ,{applications,
+    [kernel
+     ,stdlib
+    ]}
+  ,{mod, { ehmon_app, []}}
+  ,{env,
+    [
+    ]}
+ ]}.
