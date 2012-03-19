@@ -1,5 +1,5 @@
 {application, ehmon,
- [{description, "Heroku Erlang VM Monitoring library "}
+ [{description, "Heroku Erlang VM Monitoring library"}
   ,{vsn, "1"}
   ,{registered, [ehmon_sup]}
   ,{applications,
