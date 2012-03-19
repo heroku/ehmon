@@ -1,13 +1,14 @@
 {application, ehmon,
- [{description, ""}
+ [{description, "Heroku Erlang VM Monitoring library "}
   ,{vsn, "1"}
-  ,{registered, []}
+  ,{registered, [ehmon_sup]}
   ,{applications,
     [kernel
      ,stdlib
+     ,folsom
     ]}
   ,{mod, { ehmon_app, []}}
   ,{env,
-    [
+    [{reporting_interval, 60} % interval in seconds
     ]}
  ]}.
