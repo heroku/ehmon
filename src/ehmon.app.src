@@ -9,6 +9,7 @@
     ]}
   ,{mod, { ehmon_app, []}}
   ,{env,
-    [{reporting_interval, 60} % interval in seconds
+    [{report_interval, 60} % interval in seconds
+    ,{report_mf, {ehmon, stdout_report}}
     ]}
  ]}.
