@@ -25,18 +25,21 @@ stdout_report(Iolist) ->
 
 -spec report() -> iolist().
 report() ->
-    Stats = folsom_vm_metrics:get_statistics(),
-    Info = folsom_vm_metrics:get_system_info(),
-    Mem = folsom_vm_metrics:get_memory(),
+    Stats = [{context_switches,
+              element(1, erlang:statistics(context_switches))},
+              {run_queue, erlang:statistics(run_queue)}],
+    Info = [{K, erlang:system_info(K)} ||
+               K <- [check_io, otp_release, process_count, process_limit] ],
+    Mem = erlang:memory(),
     Extra = [{ports, length(erlang:ports())},
              {maxports, case os:getenv("ERL_MAX_PORTS") of
-                            false -> "1024";
-                            MaxPortsS -> integer_to_list(MaxPortsS)
+                            false -> 1024;
+                            MaxPortsS -> list_to_integer(MaxPortsS)
                         end},
              {etstabs, length(ets:all())},
              {maxetstabs, case os:getenv("ERL_MAX_ETS_TABLES") of
-                              false -> "1400";
-                              MaxEtsTabsS -> integer_to_list(MaxEtsTabsS)
+                              false -> 1400;
+                              MaxEtsTabsS -> list_to_integer(MaxEtsTabsS)
                           end}],
     report(Extra ++ Mem ++ Stats ++ Info).
 
@@ -48,7 +51,6 @@ report(Info) ->
     IO = proplists:get_value(check_io, Info),
     Items =
         [{"rq", get_value(run_queue, Info)}
-         %%,{"reds", proplists:get_value("reductions_since_last_call", get_value(reductions, Info))}
          ,{"cswit", get_value(context_switches, Info)}
          ,{"otp", get_value(otp_release, Info)}
          ,{"procs", get_value(process_count, Info)}
