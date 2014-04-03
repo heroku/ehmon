@@ -8,7 +8,9 @@
 -module(ehmon).
 
 %% API
--export([ info_report/1
+-export([ init/0
+          ,update/1
+          ,info_report/1
           ,stdout_report/1
           ,report/1
         ]).
@@ -16,6 +18,12 @@
 %%====================================================================
 %% API
 %%====================================================================
+
+init() ->
+    {undefined, erlang:statistics(scheduler_wall_time)}.
+
+update({_, SchedulerTimes}) ->
+    {SchedulerTimes, erlang:statistics(scheduler_wall_time)}.
 
 info_report(Iolist) ->
     error_logger:info_msg("ehmon_report ~s~n", [Iolist]).
