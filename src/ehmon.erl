@@ -15,15 +15,19 @@
           ,report/1
         ]).
 
+%% We store scheduler data from the last run here to compare.
+-record(state, {prev_times = undefined, current_times = undefined}).
+
 %%====================================================================
 %% API
 %%====================================================================
 
 init() ->
-    {undefined, erlang:statistics(scheduler_wall_time)}.
+    #state{current_times=erlang:statistics(scheduler_wall_time)}.
 
-update({_, SchedulerTimes}) ->
-    {SchedulerTimes, erlang:statistics(scheduler_wall_time)}.
+update(#state{current_times=SchedulerTimes}) ->
+    #state{prev_times=SchedulerTimes,
+           current_times=erlang:statistics(scheduler_wall_time)}.
 
 info_report(Iolist) ->
     error_logger:info_msg("ehmon_report ~s~n", [Iolist]).
@@ -31,16 +35,15 @@ info_report(Iolist) ->
 stdout_report(Iolist) ->
     io:format(standard_io, "ehmon_report ~s~n", [Iolist]).
 
--spec report({[OldSchedulerTimes::integer()],
-              [NewSchedulerTimes::integer()]}) -> iolist().
-report(SchedulerTimes) ->
+-spec report(#state{}) -> iolist().
+report(State) ->
     Stats = [{context_switches,
               element(1, erlang:statistics(context_switches))},
               {run_queue, erlang:statistics(run_queue)}],
     Info = [{K, erlang:system_info(K)} ||
                K <- [check_io, otp_release, process_count, process_limit] ],
     Mem = erlang:memory(),
-    Extra = [{scheduler, scheduler_time(SchedulerTimes)},
+    Extra = [{scheduler, scheduler_time(State)},
              {ports, length(erlang:ports())},
              {maxports, case os:getenv("ERL_MAX_PORTS") of
                             false -> 1024;
@@ -85,11 +88,10 @@ report_string(Info) ->
 %% tuples and previous scheduler tuples, this function calculates the
 %% diff between the two for each core, and then adds them up to give a
 %% rough equivalent of how many cores have been busy.
-scheduler_time({LastSchedulerTimes, CurrentSchedulerTimes}) ->
+scheduler_time(#state{prev_times=Prev, current_times=Current}) ->
     lists:foldl(
       fun({{I, A0, T0}, {I, A1, T1}}, Sum) -> Sum + (A1 - A0)/(T1 - T0) end,
-      0, lists:zip(lists:sort(LastSchedulerTimes),
-                   lists:sort(CurrentSchedulerTimes))).
+      0, lists:zip(lists:sort(Prev), lists:sort(Current))).
 
 
 get_value(K, List) ->
