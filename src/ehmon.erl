@@ -16,14 +16,16 @@
         ]).
 
 %% We store scheduler data from the last run here to compare.
--record(state, {prev_times = undefined, current_times = undefined}).
+-record(state, {prev_times :: undefined | [pos_integer()],
+                current_times :: [pos_integer()]}).
 
 %%====================================================================
 %% API
 %%====================================================================
 
 init() ->
-    #state{current_times=erlang:statistics(scheduler_wall_time)}.
+    #state{prev_times = undefined,
+           current_times=erlang:statistics(scheduler_wall_time)}.
 
 update(#state{current_times=SchedulerTimes}) ->
     #state{prev_times=SchedulerTimes,
