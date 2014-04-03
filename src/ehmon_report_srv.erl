@@ -20,7 +20,7 @@
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
          terminate/2, code_change/3]).
 
--record(state, {tref = undefined}).
+-record(state, {tref = undefined, scheduler_time = undefined}).
 
 -define(REPORT_MSG, report).
 
@@ -37,12 +37,15 @@ start_link() ->
 
 %% @private
 init([]) ->
-    {ok, start_timer(#state{})}.
+    erlang:system_flag(scheduler_wall_time, true),
+    {ok, start_timer(#state{scheduler_time=erlang:statistics(scheduler_wall_time)})}.
 
 %% @private
-handle_call(report_now, _From, State = #state{tref=TREF}) ->
+handle_call(report_now, _From,
+            State = #state{tref=TREF, scheduler_time=LastSchedulerTime}) ->
     erlang:cancel_timer(TREF),
-    do_report(),
+    CurrentSchedulerTime = erlang:statistics(scheduler_wall_time),
+    do_report({LastSchedulerTime, CurrentSchedulerTime}),
     {reply, ok, start_timer(State#state{tref=undefined})};
 
 handle_call(time_to_next_report, _From, State = #state{tref=TREF}) ->
@@ -59,9 +62,11 @@ handle_cast(Msg, State) ->
 
 %% @private
 handle_info({timeout, Ref, ?REPORT_MSG},
-            State = #state{tref=Ref}) ->
-    do_report(),
-    {noreply, start_timer(State#state{tref=undefined})};
+            State = #state{tref=Ref,scheduler_time=LastSchedulerTime}) ->
+    CurrentSchedulerTime = erlang:statistics(scheduler_wall_time),
+    do_report({LastSchedulerTime, CurrentSchedulerTime}),
+    {noreply, start_timer(State#state{tref=undefined,
+                                      scheduler_time=CurrentSchedulerTime})};
 handle_info(Info, State) ->
     ?WARN("Unexpected info ~p", [Info]),
     {noreply, State}.
@@ -78,10 +83,10 @@ code_change(_OldVsn, State, _Extra) ->
 %%% Internal functions
 %%--------------------------------------------------------------------
 
-do_report() ->
+do_report(SchedulerTimes) ->
     try
         {M, F} = ehmon_app:config(report_mf, {ehmon, send_report}),
-        erlang:apply(M, F, [ehmon:report()])
+        erlang:apply(M, F, [ehmon:report(SchedulerTimes)])
     catch
         Class:Err ->
             ?ERR("class=~p err=~p stack=\"~p\"",

@@ -10,7 +10,7 @@
 %% API
 -export([ info_report/1
           ,stdout_report/1
-          ,report/0
+          ,report/1
         ]).
 
 %%====================================================================
@@ -23,15 +23,17 @@ info_report(Iolist) ->
 stdout_report(Iolist) ->
     io:format(standard_io, "ehmon_report ~s~n", [Iolist]).
 
--spec report() -> iolist().
-report() ->
+-spec report({[OldSchedulerTimes::integer()],
+              [NewSchedulerTimes::integer()]}) -> iolist().
+report(SchedulerTimes) ->
     Stats = [{context_switches,
               element(1, erlang:statistics(context_switches))},
               {run_queue, erlang:statistics(run_queue)}],
     Info = [{K, erlang:system_info(K)} ||
                K <- [check_io, otp_release, process_count, process_limit] ],
     Mem = erlang:memory(),
-    Extra = [{ports, length(erlang:ports())},
+    Extra = [{scheduler, scheduler_time(SchedulerTimes)},
+             {ports, length(erlang:ports())},
              {maxports, case os:getenv("ERL_MAX_PORTS") of
                             false -> 1024;
                             MaxPortsS -> list_to_integer(MaxPortsS)
@@ -41,13 +43,13 @@ report() ->
                               false -> 1400;
                               MaxEtsTabsS -> list_to_integer(MaxEtsTabsS)
                           end}],
-    report(Extra ++ Mem ++ Stats ++ Info).
+    report_string(Extra ++ Mem ++ Stats ++ Info).
 
 %%====================================================================
 %% Internal functions
 %%====================================================================
 
-report(Info) ->
+report_string(Info) ->
     IO = proplists:get_value(check_io, Info),
     Items =
         [{"rq", get_value(run_queue, Info)}
@@ -60,6 +62,7 @@ report(Info) ->
          ,{"maxfds", get_value(max_fds, IO)}
          ,{"etstabs", get_value(etstabs, Info)}
          ,{"maxetstabs", get_value(maxetstabs, Info)}
+         ,{"scheduler", get_value(scheduler, Info)}
          ,{"memtot", get_value(total, Info)}
          ,{"memproc", get_value(processes_used, Info)}
          ,{"memets", get_value(ets, Info)}
@@ -70,9 +73,21 @@ report(Info) ->
                   || {K, V} <- Items ],
                 " ").
 
+%% Given a list of current {Core, ActiveTime, TotalTime} scheduler
+%% tuples and previous scheduler tuples, this function calculates the
+%% diff between the two for each core, and then adds them up to give a
+%% rough equivalent of how many cores have been busy.
+scheduler_time({LastSchedulerTimes, CurrentSchedulerTimes}) ->
+    lists:foldl(
+      fun({{I, A0, T0}, {I, A1, T1}}, Sum) -> Sum + (A1 - A0)/(T1 - T0) end,
+      0, lists:zip(lists:sort(LastSchedulerTimes),
+                   lists:sort(CurrentSchedulerTimes))).
+
+
 get_value(K, List) ->
     case proplists:get_value(K, List, "unknown") of
         L when is_list(L) -> L;
+        F when is_float(F) -> io_lib:format("~.2f",[F]);
         B when is_binary(B) -> B;
         I when is_integer(I) -> erlang:integer_to_list(I)
     end.
