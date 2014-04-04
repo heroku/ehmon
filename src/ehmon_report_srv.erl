@@ -20,7 +20,7 @@
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
          terminate/2, code_change/3]).
 
--record(state, {tref = undefined}).
+-record(state, {tref = undefined, report_state = undefined}).
 
 -define(REPORT_MSG, report).
 
@@ -37,13 +37,15 @@ start_link() ->
 
 %% @private
 init([]) ->
-    {ok, start_timer(#state{})}.
+    erlang:system_flag(scheduler_wall_time, true),
+    {ok, start_timer(#state{report_state=ehmon:init()})}.
 
 %% @private
-handle_call(report_now, _From, State = #state{tref=TREF}) ->
+handle_call(report_now, _From, State=#state{tref=TREF, report_state=RState}) ->
     erlang:cancel_timer(TREF),
-    do_report(),
-    {reply, ok, start_timer(State#state{tref=undefined})};
+    NewRState = ehmon:update(RState),
+    do_report(NewRState),
+    {reply, ok, start_timer(State#state{tref=undefined, report_state=NewRState})};
 
 handle_call(time_to_next_report, _From, State = #state{tref=TREF}) ->
     {reply, erlang:read_timer(TREF), State};
@@ -59,9 +61,10 @@ handle_cast(Msg, State) ->
 
 %% @private
 handle_info({timeout, Ref, ?REPORT_MSG},
-            State = #state{tref=Ref}) ->
-    do_report(),
-    {noreply, start_timer(State#state{tref=undefined})};
+            State = #state{tref=Ref,report_state=RState}) ->
+    NewRState = ehmon:update(RState),
+    do_report(NewRState),
+    {noreply, start_timer(State#state{tref=undefined, report_state=RState})};
 handle_info(Info, State) ->
     ?WARN("Unexpected info ~p", [Info]),
     {noreply, State}.
@@ -78,10 +81,10 @@ code_change(_OldVsn, State, _Extra) ->
 %%% Internal functions
 %%--------------------------------------------------------------------
 
-do_report() ->
+do_report(RState) ->
     try
         {M, F} = ehmon_app:config(report_mf, {ehmon, send_report}),
-        erlang:apply(M, F, [ehmon:report()])
+        erlang:apply(M, F, [ehmon:report(RState)])
     catch
         Class:Err ->
             ?ERR("class=~p err=~p stack=\"~p\"",
