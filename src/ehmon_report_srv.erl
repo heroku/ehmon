@@ -83,8 +83,10 @@ code_change(_OldVsn, State, _Extra) ->
 
 do_report(RState) ->
     try
-        {M, F} = ehmon_app:config(report_mf, {ehmon, send_report}),
-        erlang:apply(M, F, [ehmon:report(RState)])
+        case ehmon_app:config(report_mf, {ehmon, send_report}) of
+            {M, F, raw} -> erlang:apply(M, F, [ehmon:raw_report(RState)]);
+            {M, F} -> erlang:apply(M, F, [ehmon:report(RState)])
+        end
     catch
         Class:Err ->
             ?ERR("class=~p err=~p stack=\"~p\"",

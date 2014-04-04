@@ -12,6 +12,7 @@
           ,update/1
           ,info_report/1
           ,stdout_report/1
+          ,raw_report/1
           ,report/1
         ]).
 
@@ -37,8 +38,8 @@ info_report(Iolist) ->
 stdout_report(Iolist) ->
     io:format(standard_io, "ehmon_report ~s~n", [Iolist]).
 
--spec report(#state{}) -> iolist().
-report(State) ->
+-spec raw_report(#state{}) -> [{atom(), term()}].
+raw_report(State) ->
     Stats = [{context_switches,
               element(1, erlang:statistics(context_switches))},
               {run_queue, erlang:statistics(run_queue)}],
@@ -56,7 +57,11 @@ report(State) ->
                               false -> 1400;
                               MaxEtsTabsS -> list_to_integer(MaxEtsTabsS)
                           end}],
-    report_string(Extra ++ Mem ++ Stats ++ Info).
+    Extra ++ Mem ++ Stats ++ Info.
+
+-spec report(#state{}) -> iolist().
+report(State) ->
+    report_string(raw_report(State)).
 
 %%====================================================================
 %% Internal functions
