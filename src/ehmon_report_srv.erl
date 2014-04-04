@@ -84,8 +84,8 @@ code_change(_OldVsn, State, _Extra) ->
 do_report(RState) ->
     try
         case ehmon_app:config(report_mf, {ehmon, send_report}) of
-            {M, F, raw} -> erlang:apply(M, F, [ehmon:raw_report(RState)]);
-            {M, F} -> erlang:apply(M, F, [ehmon:report(RState)])
+            {M, F, raw} -> M:F(ehmon:raw_report(RState));
+            {M, F} -> M:F(ehmon:report(RState))
         end
     catch
         Class:Err ->
