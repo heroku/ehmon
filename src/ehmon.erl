@@ -31,11 +31,11 @@ update(#state{current_times=SchedulerTimes}) ->
     #state{prev_times=SchedulerTimes,
            current_times=erlang:statistics(scheduler_wall_time)}.
 
-info_report(Iolist) ->
-    error_logger:info_msg("ehmon_report ~s~n", [Iolist]).
+info_report(Report) ->
+    error_logger:info_msg("ehmon_report ~s~n", [report_string(Report)]).
 
-stdout_report(Iolist) ->
-    io:format(standard_io, "ehmon_report ~s~n", [Iolist]).
+stdout_report(Report) ->
+    io:format(standard_io, "ehmon_report ~s~n", [report_string(Report)]).
 
 -spec report(#state{}) -> iolist().
 report(State) ->
@@ -56,34 +56,35 @@ report(State) ->
                               false -> 1400;
                               MaxEtsTabsS -> list_to_integer(MaxEtsTabsS)
                           end}],
-    report_string(Extra ++ Mem ++ Stats ++ Info).
+    report_props(Extra ++ Mem ++ Stats ++ Info).
 
 %%====================================================================
 %% Internal functions
 %%====================================================================
 
-report_string(Info) ->
+report_props(Info) ->
     IO = proplists:get_value(check_io, Info),
-    Items =
-        [{"rq", get_value(run_queue, Info)}
-         ,{"cswit", get_value(context_switches, Info)}
-         ,{"otp", get_value(otp_release, Info)}
-         ,{"procs", get_value(process_count, Info)}
-         ,{"maxprocs", get_value(process_limit, Info)}
-         ,{"ports", get_value(ports, Info)}
-         ,{"maxports", get_value(maxports, Info)}
-         ,{"maxfds", get_value(max_fds, IO)}
-         ,{"etstabs", get_value(etstabs, Info)}
-         ,{"maxetstabs", get_value(maxetstabs, Info)}
-         ,{"scheduler", get_value(scheduler, Info)}
-         ,{"memtot", get_value(total, Info)}
-         ,{"memproc", get_value(processes_used, Info)}
-         ,{"memets", get_value(ets, Info)}
-         ,{"membin", get_value(binary, Info)}
-         ,{"memcode", get_value(code, Info)}
-        ],
-    string:join([ [K, "=", V]
-                  || {K, V} <- Items ],
+    [{rq, proplists:get_value(run_queue, Info)}
+     ,{cswit, proplists:get_value(context_switches, Info)}
+     ,{otp, proplists:get_value(otp_release, Info)}
+     ,{procs, proplists:get_value(process_count, Info)}
+     ,{maxprocs, proplists:get_value(process_limit, Info)}
+     ,{ports, proplists:get_value(ports, Info)}
+     ,{maxports, proplists:get_value(maxports, Info)}
+     ,{maxfds, proplists:get_value(max_fds, IO)}
+     ,{etstabs, proplists:get_value(etstabs, Info)}
+     ,{maxetstabs, proplists:get_value(maxetstabs, Info)}
+     ,{scheduler, proplists:get_value(scheduler, Info)}
+     ,{memtot, proplists:get_value(total, Info)}
+     ,{memproc, proplists:get_value(processes_used, Info)}
+     ,{memets, proplists:get_value(ets, Info)}
+     ,{membin, proplists:get_value(binary, Info)}
+     ,{memcode, proplists:get_value(code, Info)}
+    ].
+
+report_string(Report) ->
+    string:join([ [K, "=", get_value(K, V)]
+                  || {K, V} <- Report ],
                 " ").
 
 %% Given a list of current {Core, ActiveTime, TotalTime} scheduler

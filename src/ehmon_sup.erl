@@ -37,7 +37,11 @@ init([]) ->
     {ok, { {one_for_all, 0, 1},
            [ {ehmon_report_srv,
               {ehmon_report_srv, start_link, []},
+              permanent, 2000, worker, [ehmon_report_srv]},
+             {ehmon_shh_report,
+              {ehmon_shh_report, start_link, []},
               permanent, 2000, worker, [ehmon_report_srv]}
+
            ]} }.
 
 %%====================================================================
