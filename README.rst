@@ -12,17 +12,40 @@ Requirements
 
 
 Building Ehmon
-===================
+==============
 
     rebar compile
 
 
 OTP App Configuration Options
-=========================
+=============================
 
 report_mf:
     Reporting module and function for the fun/1 that will report the
-    iolist describing the system statistics. Usually ```{ehmon, stdout_report}'''
+    iolist describing the system statistics. Defaults to ```{ehmon, stdout_report}```.
+
+    Reports can also be sent to shh using ```{ehmon_shh_report, send_report}```.
+
+report_interval:
+    Interval in seconds between outputing the report. Defaults to ```60```.
+
+shh_report_prefix:
+    The prefix to prepend to report statistics. Defaults to ```"erlang.ehmon"```.
+
+ehmon_shh_socket:
+    Path a unix domain socket that the ```ehmon_shh_report``` will send reports to. Defaults to ```/#shh```.
+
+ehmon_shh_host:
+    Host that the ```ehmon_shh_report``` will connect to via tcp to send reports. Not set by default.
+
+    Must be combined with ```ehmon_shh_port``` and will take precedence over any defined ```ssh_report_socket```
+    options.
+
+ehmon_shh_port:
+    Port that the ```ehmon_shh_report``` will connect to via tcp to send reports. Not set by default.
+
+    Must be combined with ```ehmon_shh_port``` and will take precedence over any defined ```ssh_report_socket```
+    options.
 
 Example Output
 ==============

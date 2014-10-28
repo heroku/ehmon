@@ -6,33 +6,13 @@
 %%% @end
 %%%-------------------------------------------------------------------
 -module(ehmon_shh_report).
--behaviour(gen_server).
 
 %% API
 -export([start_link/0,
-         start_link/3,
+         format_report/1,
+         format_report/2,
+         prefix/0,
          send_report/1]).
-
-%% gen_server callbacks
--export([init/1,
-         handle_call/3,
-         handle_cast/2,
-         handle_info/2,
-         terminate/2,
-         code_change/3]).
-
--define(SOCKET_OPTS, [binary, {active, once}, {packet, raw}, {reuseaddr, true}]).
--define(RECONNECT_DELAY, 15000).
--define(PREFIX, "erlang.ehmon").
-
--record(state, {
-          host = '127.0.0.1',
-          port = 8000,
-          prefix = ?PREFIX,
-          connect_timeout = 5000,
-          reconnect_delay = undefined,
-          socket = undefined
-         }).
 
 %%%===================================================================
 %%% API
@@ -46,170 +26,59 @@
 %% @end
 %%--------------------------------------------------------------------
 start_link() ->
-    Host = ehmon_app:config(shh_report_host, "127.0.0.1"),
-    Port = ehmon_app:config(shh_report_port, 8000),
-    Prefix = ehmon_app:config(shh_report_prefix, ?PREFIX),
-    start_link(Host, Port, Prefix).
+    start_client(connect_opts()).
 
-start_link(Host, Port, Prefix) ->
-    gen_server:start_link({local, ?MODULE}, ?MODULE, [Host, Port, Prefix], []).
+format_report(Report) ->
+    format_report(Report, prefix()).
+
+format_report(Report, Prefix) ->
+    format_report(Report, now_to_rfc3339(), Prefix, []).
+
+prefix() ->
+    ehmon_app:config(shh_report_prefix, "erlang.ehmon").
 
 send_report(Report) ->
     gen_server:call(?MODULE, {send_report, Report}).
 
 %%%===================================================================
-%%% gen_server callbacks
-%%%===================================================================
-
-%%--------------------------------------------------------------------
-%% @private
-%% @doc
-%% Initializes the server
-%%
-%% @spec init(Args) -> {ok, State} |
-%%                     {ok, State, Timeout} |
-%%                     ignore |
-%%                     {stop, Reason}
-%% @end
-%%--------------------------------------------------------------------
-init([Host, Port, Prefix]) ->
-    State = #state{host=Host,
-                   port=Port,
-                   prefix=Prefix},
-    State1 = reconnect_after_delay(State),
-    {ok, State1}.
-
-%%--------------------------------------------------------------------
-%% @private
-%% @doc
-%% Handling call messages
-%%
-%% @spec handle_call(Request, From, State) ->
-%%                                   {reply, Reply, State} |
-%%                                   {reply, Reply, State, Timeout} |
-%%                                   {noreply, State} |
-%%                                   {noreply, State, Timeout} |
-%%                                   {stop, Reason, Reply, State} |
-%%                                   {stop, Reason, State}
-%% @end
-%%--------------------------------------------------------------------
-handle_call({send_report, Report}, _From, State0) ->
-    {Reply, State} = handle_send_report(Report, State0),
-    {reply, Reply, State};
-handle_call(_Request, _From, State) ->
-    {reply, ok, State}.
-
-%%--------------------------------------------------------------------
-%% @private
-%% @doc
-%% Handling cast messages
-%%
-%% @spec handle_cast(Msg, State) -> {noreply, State} |
-%%                                  {noreply, State, Timeout} |
-%%                                  {stop, Reason, State}
-%% @end
-%%--------------------------------------------------------------------
-handle_cast(_Msg, State) ->
-    {noreply, State}.
-
-%%--------------------------------------------------------------------
-%% @private
-%% @doc
-%% Handling all non call/cast messages
-%%
-%% @spec handle_info(Info, State) -> {noreply, State} |
-%%                                   {noreply, State, Timeout} |
-%%                                   {stop, Reason, State}
-%% @end
-%%--------------------------------------------------------------------
-handle_info({tcp_error, _Socket, _Reason}, State) ->
-    % will be followed by a close
-    {noreply, State};
-handle_info({tcp_closed, _Socket}, State0) ->
-    State = reconnect_after_delay(State0),
-    {noreply, State#state{ socket=undefined }};
-handle_info(reconnect, State0) ->
-    case connect(State0) of
-        {ok, State} ->
-            {noreply, State#state{ reconnect_delay=undefined }};
-        {error, {connection_error, Reason}} ->
-            error_logger:warning_msg("Shh connection error: ~p~n", [Reason]),
-            State = reconnect_after_delay(State0),
-            {noreply, State}
-    end;
-handle_info(_Info, State) ->
-    {noreply, State}.
-
-%%--------------------------------------------------------------------
-%% @private
-%% @doc
-%% This function is called by a gen_server when it is about to
-%% terminate. It should be the opposite of Module:init/1 and do any
-%% necessary cleaning up. When it returns, the gen_server terminates
-%% with Reason. The return value is ignored.
-%%
-%% @spec terminate(Reason, State) -> void()
-%% @end
-%%--------------------------------------------------------------------
-terminate(_Reason, _State) ->
-    ok.
-
-%%--------------------------------------------------------------------
-%% @private
-%% @doc
-%% Convert process state when code is changed
-%%
-%% @spec code_change(OldVsn, State, Extra) -> {ok, NewState}
-%% @end
-%%--------------------------------------------------------------------
-code_change(_OldVsn, State, _Extra) ->
-    {ok, State}.
-
-%%%===================================================================
 %%% Internal functions
 %%%===================================================================
 
-connect(State) ->
-    case gen_tcp:connect(State#state.host, State#state.port,
-                         ?SOCKET_OPTS, State#state.connect_timeout) of
-        {ok, Socket} ->
-            {ok, State#state{ socket=Socket }};
-        {error, Reason} ->
-            {error, {connection_error, Reason}}
-    end.
+connect_opts() ->
+    connect_opts({tcp,
+                  ehmon_app:config(shh_report_host, undefined),
+                  ehmon_app:config(shh_report_port, undefined)}).
 
-reconnect_after_delay(State0) ->
-    State = next_reconnect_delay(State0),
-    erlang:send_after(State#state.reconnect_delay, self(), reconnect), 
-    State.
+connect_opts({tcp, undefined, Port}) when
+      Port =/= undefined ->
+    {error, {shh_report_host, missing}};
+connect_opts({tcp, Host, undefined}) when
+      Host =/= undefined ->
+    {error, {shh_report_port, missing}};
+connect_opts({tcp, undefined, undefined}) ->
+    connect_opts({unix, ehmon_app:config(shh_report_socket, undefined)});
+connect_opts({unix, undefined}) ->
+    {error, {ssh_report_socket, missing}};
+connect_opts(Opts) ->
+    Opts.
 
-next_reconnect_delay(State=#state{ reconnect_delay=undefined }) ->
-    State#state{ reconnect_delay=0 };
-next_reconnect_delay(State=#state{ reconnect_delay=0}) ->
-    State#state{ reconnect_delay=?RECONNECT_DELAY };
-next_reconnect_delay(State) ->
-    State.
+start_client({tcp, Host, Port}) ->
+    ehmon_shh_tcp:start_link(Host, Port);
+start_client({unix, Path}) ->
+    ehmon_shh_unix:start_link(Path).
 
-handle_send_report(Report, State) ->
-    Reply = tcp_send_report(State#state.socket, format_report(Report, State#state.prefix)),
-    {Reply, State}.
-
-format_report(Report, Prefix) ->
-    format_report(Report, Prefix, []).
-
-format_report([], _Prefix, Out) ->
+format_report([], _RFC3339, _Prefix, Out) ->
     iolist_to_binary(Out);
-format_report([Metric | Rest], Prefix, Out) ->
-    format_report(Rest, Prefix, prepend_metric(Prefix, Metric, Out)).
+format_report([Metric | Rest], RFC3339, Prefix, Out) ->
+    format_report(Rest, RFC3339, Prefix, prepend_metric(RFC3339, Prefix, Metric, Out)).
 
-prepend_metric(_Prefix, {otp, _}, Out) ->
+prepend_metric(_RFC3339, _Prefix, {otp, _}, Out) ->
     Out;
-prepend_metric(Prefix, Metric, Out) ->
-    io:format(standard_io, "ehmon_report ~s~n", [format_metric(Prefix, Metric)]),
-    [format_metric(Prefix, Metric) | Out].
+prepend_metric(RFC3339, Prefix, Metric, Out) ->
+    [format_metric(RFC3339, Prefix, Metric) | Out].
 
-format_metric(Prefix, {Name, Val}) ->
-    io_lib:format("~w ~s.~w ~w ~w ~s~n", [unixtime(), Prefix, Name, Val, gauge, format_unit(Name)]).
+format_metric(RFC3339, Prefix, {Name, Val}) ->
+    io_lib:format("~s ~s.~w ~w ~w ~s~n", [RFC3339, Prefix, Name, Val, gauge, format_unit(Name)]).
 
 format_unit(cswit) ->
     "ContextSwitches,cswit";
@@ -269,17 +138,24 @@ format_unit(objects) ->
 format_unit(routines) ->
     "Routines,routines".
 
-tcp_send_report(undefined, _Report) ->
-    {error, not_connected};
-tcp_send_report(Socket, Report) ->
-    case gen_tcp:send(Socket, Report) of
-        ok -> ok;
-        Err={error, _Reason} ->
-            Err
-    end.
+now_to_rfc3339() ->
+    now_to_rfc3339(os:timestamp()).
 
-unixtime() ->
-    unixtime(os:timestamp()).
+now_to_rfc3339(Now) ->
+    {Date, {Hour, Min, Sec}} = calendar:now_to_universal_time(Now),
+    now_to_rfc3339(Date, {Hour, Min, floor_to_interval(Sec)}, 'Z').
 
-unixtime({Mega, Sec, Micro}) ->
-    Mega * 1000000 * 1000000 + Sec * 1000000 + Micro.
+now_to_rfc3339({Year, Month, Day}, {Hour, Minute, Second}, Offset) ->
+    OffStr = case Offset of
+                 'Z' -> "Z";
+                 {Dir, H, M} ->
+                     io_lib:format("~s~2.10.0B:~2.10.0B",
+                                   [case Dir of '+' -> "+"; '-' -> "-" end,
+                                    H, M])
+             end,
+    io_lib:format("~4.10.0B-~2.10.0B-~2.10.0BT~2.10.0B:~2.10.0B:~2.10.0B~s",
+                  [Year, Month, Day, Hour, Minute, Second, OffStr]).
+
+floor_to_interval(Sec) ->
+    Interval = ehmon_app:config(report_interval),
+    Sec - (Sec rem Interval).

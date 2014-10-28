@@ -1,14 +1,17 @@
+%% vim: set ft=erlang et:
 {application, ehmon,
  [{description, "Heroku Erlang VM Monitoring library"}
   ,{vsn, "1"}
   ,{registered, [ehmon_sup]}
   ,{applications,
-    [kernel
-     ,stdlib
+    [kernel,
+     stdlib,
+     gen_unix
     ]}
-  ,{mod, { ehmon_app, []}}
+  ,{mod, {ehmon_app, []}}
   ,{env,
     [{report_interval, 60} % interval in seconds
-    ,{report_mf, {ehmon, stdout_report}}
+    ,{report_mf, {ehmon, stdout_report}} %% report over stdout
+    ,{shh_report_prefix, "erlang.ehmon"} % prefix for all ehmon metrics
     ]}
  ]}.
