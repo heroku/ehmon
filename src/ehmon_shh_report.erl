@@ -54,13 +54,16 @@ init([ConnectOpts]) ->
 handle_call({send_report, Report}, _From, State0) ->
     {Reply, State} = handle_send_report(Report, State0),
     {reply, Reply, State};
-handle_call(_Request, _From, State0) ->
-    {reply, ok, State0}.
-
-handle_cast(_Msg, State0) ->
+handle_call(Request, From, State0) ->
+    error_logger:warning_msg("~p unexpected call ~p from ~p~n", [?MODULE, Request, From]),
     {noreply, State0}.
 
-handle_info(_Info, State0) ->
+handle_cast(Msg, State0) ->
+    error_logger:warning_msg("~p unexpected cast ~p~n", [?MODULE, Msg]),
+    {noreply, State0}.
+
+handle_info(Info, State0) ->
+    error_logger:warning_msg("~p unexpected info ~p~n", [?MODULE, Info]),
     {noreply, State0}.
 
 terminate(_Reason, _State0) ->
