@@ -6,27 +6,30 @@
 %%% @end
 %%%-------------------------------------------------------------------
 -module(ehmon_shh_report).
+-behaviour(gen_server).
 
 %% API
 -export([start_link/0,
-         format_report/1,
-         format_report/2,
-         prefix/0,
          send_report/1]).
 
-%%%===================================================================
-%%% API
-%%%===================================================================
+%% gen_server callbacks
+-export([init/1,
+         handle_call/3,
+         handle_cast/2,
+         handle_info/2,
+         terminate/2,
+         code_change/3]).
 
-%%--------------------------------------------------------------------
-%% @doc
-%% Starts the server
-%%
-%% @spec start_link() -> {ok, Pid} | ignore | {error, Error}
-%% @end
-%%--------------------------------------------------------------------
+-define(DEFAULT_CONNECT_TIMEOUT, 5000).
+
+-record(state, {client}).
+
+%%%-------------------------------------------------------------------
+%%% API
+%%%-------------------------------------------------------------------
+
 start_link() ->
-    start_client(connect_opts()).
+    gen_server:start_link({local, ?MODULE}, ?MODULE, [connect_opts()], []).
 
 format_report(Report) ->
     format_report(Report, prefix()).
@@ -40,32 +43,66 @@ prefix() ->
 send_report(Report) ->
     gen_server:call(?MODULE, {send_report, Report}).
 
-%%%===================================================================
+%%%-------------------------------------------------------------------
+%%% gen_server callbacks
+%%%-------------------------------------------------------------------
+
+init([ConnectOpts]) ->
+    {ok, Client} = shh_drv:start_link(ConnectOpts),
+    {ok, #state{ client=Client }}.
+
+handle_call({send_report, Report}, _From, State0) ->
+    {Reply, State} = handle_send_report(Report, State0),
+    {reply, Reply, State};
+handle_call(_Request, _From, State0) ->
+    {reply, ok, State0}.
+
+handle_cast(_Msg, State0) ->
+    {noreply, State0}.
+
+handle_info(_Info, State0) ->
+    {noreply, State0}.
+
+terminate(_Reason, _State0) ->
+    ok.
+
+code_change(_OldVsn, State0, _Extra) ->
+    {ok, State0}.
+
+%%%-------------------------------------------------------------------
 %%% Internal functions
-%%%===================================================================
+%%%-------------------------------------------------------------------
 
 connect_opts() ->
     connect_opts({tcp,
-                  ehmon_app:config(shh_report_host, undefined),
-                  ehmon_app:config(shh_report_port, undefined)}).
+                  ehmon_app:config(shh_tcp_host, undefined),
+                  ehmon_app:config(shh_tcp_port, undefined),
+                  ehmon_app:config(shh_tcp_connect_timeout, ?DEFAULT_CONNECT_TIMEOUT)}).
 
-connect_opts({tcp, undefined, Port}) when
+connect_opts({tcp, undefined, Port, _Timeout}) when
       Port =/= undefined ->
-    {error, {shh_report_host, missing}};
-connect_opts({tcp, Host, undefined}) when
+    {error, {shh_tcp_host, missing}};
+connect_opts({tcp, Host, undefined, _Timeout}) when
       Host =/= undefined ->
-    {error, {shh_report_port, missing}};
-connect_opts({tcp, undefined, undefined}) ->
-    connect_opts({unix, ehmon_app:config(shh_report_socket, undefined)});
+    {error, {shh_tcp_port, missing}};
+connect_opts({tcp, undefined, undefined, _Timeout}) ->
+    connect_opts({unix, ehmon_app:config(shh_unix_socket, undefined)});
 connect_opts({unix, undefined}) ->
-    {error, {ssh_report_socket, missing}};
+    {error, {ssh_unix_socket, missing}};
 connect_opts(Opts) ->
     Opts.
 
-start_client({tcp, Host, Port}) ->
-    ehmon_shh_tcp:start_link(Host, Port);
-start_client({unix, Path}) ->
-    ehmon_shh_unix:start_link(Path).
+handle_send_report(Report, State0) ->
+    FormattedReport = format_report(Report),
+    send_report_to_client(FormattedReport, State0).
+
+send_report_to_client(Report, #state{ client=Client }=State0) ->
+    handle_client_reply(shh_drv:send(Client, Report), State0).
+
+handle_client_reply(ok, State) ->
+    {ok, State};
+handle_client_reply({error, Reason}, State0) ->
+    {{error, Reason}, State0}.
 
 format_report([], _RFC3339, _Prefix, Out) ->
     iolist_to_binary(Out);
