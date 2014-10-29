@@ -24,7 +24,10 @@ report_mf:
     Reporting module and function for the fun/1 that will report the
     iolist describing the system statistics. Defaults to ```{ehmon, stdout_report}```.
 
-    Reports can also be sent to shh using ```{ehmon_shh_report, send_report}```.
+    Reports can also be sent to shh using ```{ehmon_shh_report, send_report}```. If you decide to send reports to a
+    listening shh instance you must decide to use either a TCP or Unix Domain Socket. Using the domain socket interface
+    will require an additional dependency on `gen_unix <https://github.com/msantos/gen_unix>_`. You wil need to add it
+    accordingly to your applications ```rebar.config``` or similar file.
 
 report_interval:
     Interval in seconds between outputing the report. Defaults to ```60```.
