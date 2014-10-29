@@ -88,7 +88,7 @@ connect_opts({tcp, Host, undefined, _Timeout}) when
 connect_opts({tcp, undefined, undefined, _Timeout}) ->
     connect_opts({unix, ehmon_app:config(shh_unix_socket, undefined)});
 connect_opts({unix, undefined}) ->
-    {error, {ssh_unix_socket, missing}};
+    {error, {shh_unix_socket, missing}};
 connect_opts(Opts) ->
     Opts.
 
