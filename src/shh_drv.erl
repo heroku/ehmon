@@ -116,7 +116,7 @@ shh_unix_connect(Path) ->
 handle_shh_connect_reply({ok, Socket}, State0) ->
     State0#state{ socket=Socket, reconnect_after=undefined };
 handle_shh_connect_reply({error, Reason}, State) ->
-    log_warning(connection, Reason),
+    log_warning(connection, Reason, State),
     reconnect_after_delay(State).
 
 send_buffered_data(#state{ socket=undefined }=State0) ->
@@ -156,12 +156,12 @@ send_to_socket(unix, Socket, Data) ->
 handle_socket_reply(ok, _Data, State) ->
     {ok, State};
 handle_socket_reply({error, Reason}, Data, State0) ->
-    log_warning(send, Reason),
+    log_warning(send, Reason, State0),
     State = append_data_to_buffer(Data, State0),
     {{error, Reason}, reconnect_after_delay(State)}.
 
 append_data_to_buffer(Data, #state{ buffer=Buffer0 }=State0) ->
     State0#state{ buffer=queue:in(Data, Buffer0) }.
 
-log_warning(Action, Reason) ->
-    error_logger:warning_msg("~p ~p got ~p~n", [?MODULE, Action, Reason]).
+log_warning(Action, Reason, #state{ opts=Opts }) ->
+    error_logger:warning_msg("~p ~p got ~p using ~p~n", [?MODULE, Action, Reason, Opts]).
