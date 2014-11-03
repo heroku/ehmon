@@ -12,17 +12,43 @@ Requirements
 
 
 Building Ehmon
-===================
+==============
 
     rebar compile
 
 
 OTP App Configuration Options
-=========================
+=============================
 
 report_mf:
     Reporting module and function for the fun/1 that will report the
-    iolist describing the system statistics. Usually ```{ehmon, stdout_report}'''
+    iolist describing the system statistics. Defaults to ```{ehmon, stdout_report}```.
+
+    Reports can also be sent to shh using ```{ehmon_shh_report, send_report}```. If you decide to send reports to a
+    listening shh instance you must decide to use either a TCP or Unix Domain Socket. Using the domain socket interface
+    will require an additional dependency on `gen_unix <https://github.com/msantos/gen_unix>_`. You wil need to add it
+    accordingly to your applications ```rebar.config``` or similar file.
+
+report_interval:
+    Interval in seconds between outputing the report. Defaults to ```60```.
+
+shh_report_prefix:
+    The prefix to prepend to report statistics. Defaults to ```"erlang.ehmon"```.
+
+shh_unix_socket:
+    Path a unix domain socket that the ```ehmon_shh_report``` will send reports to. Defaults to ```/#shh```.
+
+shh_tcp_host:
+    Host that the ```ehmon_shh_report``` will connect to via tcp to send reports. Not set by default.
+
+    Must be combined with ```shh_tcp_port``` and will take precedence over any defined ```shh_unix_socket```
+    options.
+
+shh_tcp_port:
+    Port that the ```ehmon_shh_report``` will connect to via tcp to send reports. Not set by default.
+
+    Must be combined with ```shh_tcp_host``` and will take precedence over any defined ```shh_unix_socket```
+    options.
 
 Example Output
 ==============

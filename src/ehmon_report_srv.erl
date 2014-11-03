@@ -83,7 +83,7 @@ code_change(_OldVsn, State, _Extra) ->
 
 do_report(RState) ->
     try
-        {M, F} = ehmon_app:config(report_mf, {ehmon, send_report}),
+        {M, F} = ehmon_app:config(report_mf, {ehmon, stdout_report}),
         erlang:apply(M, F, [ehmon:report(RState)])
     catch
         Class:Err ->
