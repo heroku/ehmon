@@ -77,23 +77,15 @@ code_change(_OldVsn, State0, _Extra) ->
 %%%-------------------------------------------------------------------
 
 connect_opts() ->
-    connect_opts({tcp,
-                  ehmon_app:config(shh_tcp_host, undefined),
-                  ehmon_app:config(shh_tcp_port, undefined),
-                  ehmon_app:config(shh_tcp_connect_timeout, ?DEFAULT_CONNECT_TIMEOUT)}).
+    connect_opts(ehmon_app:config(shh_connection, "")).
 
-connect_opts({tcp, undefined, Port, _Timeout}) when
-      Port =/= undefined ->
-    {error, {shh_tcp_host, missing}};
-connect_opts({tcp, Host, undefined, _Timeout}) when
-      Host =/= undefined ->
-    {error, {shh_tcp_port, missing}};
-connect_opts({tcp, undefined, undefined, _Timeout}) ->
-    connect_opts({unix, ehmon_app:config(shh_unix_socket, undefined)});
-connect_opts({unix, undefined}) ->
-    {error, {shh_unix_socket, missing}};
-connect_opts(Opts) ->
-    Opts.
+connect_opts("tcp," ++ HostPort) ->
+    [Host, Port] = string:tokens(HostPort, ":"),
+    {tcp, Host, list_to_integer(Port), ehmon_app:config(tcp_connect_timeout, ?DEFAULT_CONNECT_TIMEOUT)};
+connect_opts("unix," ++ Socket) ->
+    {unix, Socket};
+connect_opts(EnvValue) ->
+    {error, {unknown_connection_option, EnvValue}}.
 
 handle_send_report(Report, State0) ->
     FormattedReport = format_report(Report),

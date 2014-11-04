@@ -35,20 +35,9 @@ report_interval:
 shh_report_prefix:
     The prefix to prepend to report statistics. Defaults to ```"erlang.ehmon"```.
 
-shh_unix_socket:
-    Path a unix domain socket that the ```ehmon_shh_report``` will send reports to. Defaults to ```/#shh```.
-
-shh_tcp_host:
-    Host that the ```ehmon_shh_report``` will connect to via tcp to send reports. Not set by default.
-
-    Must be combined with ```shh_tcp_port``` and will take precedence over any defined ```shh_unix_socket```
-    options.
-
-shh_tcp_port:
-    Port that the ```ehmon_shh_report``` will connect to via tcp to send reports. Not set by default.
-
-    Must be combined with ```shh_tcp_host``` and will take precedence over any defined ```shh_unix_socket```
-    options.
+shh_connection:
+    A string that specifies how to connect to the listening shh process. The string should match on of the following
+    two formats: ```tcp,$HOST:$PORT``` or ```unix,$PATH_TO_SOCKET```.
 
 Example Output
 ==============
