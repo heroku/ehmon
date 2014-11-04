@@ -5,8 +5,7 @@
   ,{registered, [ehmon_sup]}
   ,{applications,
     [kernel,
-     stdlib,
-     gen_unix
+     stdlib
     ]}
   ,{mod, {ehmon_app, []}}
   ,{env,
