@@ -50,10 +50,12 @@ init(Args) ->
 handle_call({send, Data}, _From, State0) ->
     {Reply, State} = handle_send(Data, State0),
     {reply, Reply, State};
-handle_call(_Request, _From, State) ->
-    {reply, ok, State}.
+handle_call(Request, _From, State) ->
+    error_logger:warning_msg("~p unexpected call ~p~n", [?MODULE, Request]),
+    {noreply, State}.
 
-handle_cast(_Msg, State) ->
+handle_cast(Msg, State) ->
+    error_logger:warning_msg("~p unexpected cast ~p~n", [?MODULE, Msg]),
     {noreply, State}.
 
 handle_info(reconnect, State0) ->
@@ -64,7 +66,8 @@ handle_info({tcp_error, _Socket, _Reason}, State) ->
     {noreply, State};
 handle_info({tcp_closed, _Socket}, State0) ->
     {noreply, reconnect_after_delay(State0)};
-handle_info(_Info, State) ->
+handle_info(Info, State) ->
+    error_logger:warning_msg("~p unexpected info ~p~n", [?MODULE, Info]),
     {noreply, State}.
 
 terminate(_Reason, _State) ->

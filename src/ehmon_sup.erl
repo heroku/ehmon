@@ -38,7 +38,7 @@ init([]) ->
                   {ehmon_report_srv, start_link, []},
                   permanent, 2000, worker, [ehmon_report_srv]}],
     Children = append_shh_reporter(ReportSrv),
-    {ok, { {one_for_all, 0, 1}, Children} }.
+    {ok, { {one_for_one, 1, 1}, Children} }.
 
 %%====================================================================
 %% Internal functions
