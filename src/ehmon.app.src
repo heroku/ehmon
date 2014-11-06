@@ -1,7 +1,7 @@
 %% vim: set ft=erlang et:
 {application, ehmon,
  [{description, "Heroku Erlang VM Monitoring library"}
-  ,{vsn, "3"}
+  ,{vsn, "4"}
   ,{registered, [ehmon_sup]}
   ,{applications,
     [kernel,
