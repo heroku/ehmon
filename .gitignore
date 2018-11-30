@@ -6,5 +6,5 @@ c_src/*.o
 .eunit/*
 .#*
 deps/*
-.rebar
+.rebar*
 erl_crash.dump
