@@ -82,9 +82,9 @@ report_props(Info) ->
      ,{memcode, proplists:get_value(code, Info)}
     ].
 
-get_io_info([Head, _Tail]) -> 
+get_io_info([Head | _Tail]) when is_list(Head) ->
     Head;
-get_io_info(List) -> 
+get_io_info(List) ->
     List.
 
 report_string(Report) ->
