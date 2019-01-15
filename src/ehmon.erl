@@ -63,7 +63,7 @@ report(State) ->
 %%====================================================================
 
 report_props(Info) ->
-    IO = proplists:get_value(check_io, Info),
+    IO = get_io_info(proplists:get_value(check_io, Info)),
     [{rq, proplists:get_value(run_queue, Info)}
      ,{cswit, proplists:get_value(context_switches, Info)}
      ,{otp, proplists:get_value(otp_release, Info)}
@@ -81,6 +81,11 @@ report_props(Info) ->
      ,{membin, proplists:get_value(binary, Info)}
      ,{memcode, proplists:get_value(code, Info)}
     ].
+
+get_io_info([Head | _Tail]) when is_list(Head) ->
+    Head;
+get_io_info(List) ->
+    List.
 
 report_string(Report) ->
    string:join([ [atom_to_list(K), "=", format_value(V)]
